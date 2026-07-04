@@ -61,6 +61,10 @@ textarea{min-height:88px;resize:vertical}
 .toast.show{opacity:1}
 .hidden{display:none}
 .loading{text-align:center;color:var(--muted);padding:40px 0;font-size:14px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.grid2 .choice{margin-bottom:0;padding:12px 10px;font-size:14px;justify-content:flex-start}
+.navrow{display:flex;gap:8px;margin-bottom:10px}
+.navrow button{flex:1;padding:9px;border:1.5px solid #DDE7E7;border-radius:10px;background:#fff;color:var(--muted);font-size:13px;cursor:pointer}
 </style>
 </head>
 <body>
@@ -172,16 +176,19 @@ function renderModePick() {
 
 /* ---------- 頁面:主題選擇 ---------- */
 function renderTopicPick(kind) {
+  S.kind = kind;
   var list = kind === 'disease' ? S.init.diseases : S.init.ingredients;
   var multi = kind === 'disease';
   S.picked = [];
   var h = '<div class="card"><b>' + (multi ? '請勾選您的健康困擾(可複選)' : '請選擇想了解的成分') + '</b><div style="height:10px"></div>';
+  h += '<div class="grid2">';
   list.forEach(function (t) {
     h += '<div class="choice" data-code="' + t.code + '" onclick="togglePick(this,' + multi + ')">' +
          '<div class="chk">✓</div><div>' + esc(t.name) + '</div></div>';
   });
+  h += '</div>';
   h += '<button id="goBtn" class="btn" disabled onclick="afterPick(' + multi + ')">下一步</button>' +
-       '<button class="btn gray" onclick="renderModePick()">← 返回</button></div>';
+       '<button class="btn gray" onclick="renderModePick()">← 回諮詢首頁</button></div>';
   render(h);
 }
 
@@ -205,24 +212,38 @@ function afterPick(multi) {
 
 /* ---------- 頁面:用藥狀態(一次問,套用全部) ---------- */
 function renderMedStatus() {
+  S.medStatus = [];
   var opts = [
     ['none', '都沒有'],
     ['meds', '有服用慢性病藥物'],
     ['anticoag', '有服用抗凝血藥物(如可化凝、脈化寧、普栓達等)'],
     ['pregnant', '目前懷孕或備孕中']
   ];
-  var h = '<div class="card"><b>為了給您安全的建議,請問您目前:</b><div style="height:10px"></div>';
+  var h = '<div class="card"><b>為了給您安全的建議,請問您目前:(可複選)</b><div style="height:10px"></div>';
   opts.forEach(function (o) {
     h += '<div class="choice" data-v="' + o[0] + '" onclick="pickMed(this)"><div class="chk">✓</div><div>' + o[1] + '</div></div>';
   });
-  h += '<button id="medBtn" class="btn" disabled onclick="loadTopics()">開始看說明</button></div>';
+  h += '<button id="medBtn" class="btn" disabled onclick="loadTopics()">開始看說明</button>' +
+       '<button class="btn gray" onclick="renderTopicPick(S.kind)">← 上一頁</button></div>';
   render(h);
 }
 function pickMed(el) {
-  document.querySelectorAll('.choice').forEach(function (c) { c.classList.remove('on'); });
-  el.classList.add('on');
-  S.medStatus = el.getAttribute('data-v');
-  document.getElementById('medBtn').disabled = false;
+  var v = el.getAttribute('data-v');
+  if (v === 'none') {
+    // 「都沒有」與其他互斥
+    document.querySelectorAll('.choice').forEach(function (c) { c.classList.remove('on'); });
+    S.medStatus = ['none']; el.classList.add('on');
+  } else {
+    // 取消「都沒有」
+    var noneEl = document.querySelector('.choice[data-v="none"]');
+    if (noneEl) noneEl.classList.remove('on');
+    var i = S.medStatus.indexOf('none');
+    if (i >= 0) S.medStatus.splice(i, 1);
+    var j = S.medStatus.indexOf(v);
+    if (j >= 0) { S.medStatus.splice(j, 1); el.classList.remove('on'); }
+    else { S.medStatus.push(v); el.classList.add('on'); }
+  }
+  document.getElementById('medBtn').disabled = S.medStatus.length === 0;
 }
 
 /* ---------- 頁面:主題內容(逐一閱讀) ---------- */
@@ -238,7 +259,7 @@ function loadTopics() {
 function renderTopic() {
   var t = S.topics[S.topicIdx];
   var isLast = S.topicIdx === S.topics.length - 1;
-  var h = '';
+  var h = '<div class="navrow"><button onclick="prevTopic()">← 上一頁</button><button onclick="renderModePick()">回諮詢首頁</button></div>';
   if (S.topics.length > 1) {
     h += '<div class="stepdots">' + (S.topicIdx + 1) + ' / ' + S.topics.length + ' 個主題</div>';
   }
@@ -250,14 +271,39 @@ function renderTopic() {
          '<span>🔍 深入了解</span><span class="chev">▾</span></button>' +
          '<div class="acc-body"><p>' + esc(t.deep) + '</p></div>';
   }
-  // 有用藥者:每個主題頁都帶轉真人入口
-  if (S.medStatus && S.medStatus !== 'none') {
-    h += '<div class="warn yellow" style="margin-top:12px">您有用藥/特殊狀況,補充前建議先諮詢藥師。' +
-         '<div style="margin-top:6px"><a href="javascript:renderConsult()" style="color:var(--yellow);font-weight:600">→ 轉專人用藥諮詢</a></div></div>';
+  if (S.kind === 'ingredient') {
+    // 成分路:直接由藥師傳送推薦到 LINE,不在網頁顯示商品
+    h += '<button class="btn" onclick="sendRecommendDirect()">' + esc(pharmTitle()) + '(傳送至 LINE)</button>' +
+         '<p style="font-size:12px;color:var(--muted);text-align:center;margin-top:6px">商品資訊將直接傳送到您的 LINE 聊天室</p>';
+  } else {
+    h += '<button class="btn" onclick="nextTopic()">' + (isLast ? '看營養補充建議 →' : '下一個主題 →') + '</button>';
   }
-  h += '<button class="btn" onclick="nextTopic()">' + (isLast ? '看營養補充建議 →' : '下一個主題 →') + '</button></div>';
+  h += '</div>';
   render(h);
   window.scrollTo(0, 0);
+}
+
+function prevTopic() {
+  if (S.topicIdx > 0) { S.topicIdx--; renderTopic(); }
+  else if (S.kind === 'disease') { renderMedStatus(); }
+  else { renderTopicPick(S.kind); }
+}
+
+function pharmTitle() {
+  return CFG.recommend_title || '藥師專業推薦';
+}
+
+function sendRecommendDirect() {
+  render('<div class="loading">為您準備藥師推薦中…</div>');
+  call('apiGetRecommendations', S.picked).then(function (d) {
+    S.rec = d;
+    if (!d.products || !d.products.length) {
+      toast('目前沒有對應的推薦商品,歡迎洽詢藥師');
+      renderTopic();
+      return;
+    }
+    pushCarousel();
+  }).catch(function () { toast('載入失敗'); renderTopic(); });
 }
 
 function nextTopic() {
@@ -274,44 +320,32 @@ function loadRecommendations() {
 }
 
 function renderRecommendations() {
-  var h = '';
-  // 成分建議(衛教層)
+  var h = '<div class="navrow"><button onclick="S.topicIdx=S.topics.length-1;renderTopic()">← 上一頁</button><button onclick="renderModePick()">回諮詢首頁</button></div>';
+  // 成分建議(衛教層):只顯示成分與說明,不含用法用量
   S.rec.ingredients.forEach(function (g) {
     h += '<div class="card"><b>' + esc(g.topicName) + '・建議補充方向</b><div style="height:6px"></div>';
     g.items.forEach(function (it) {
       h += '<div class="ing-item"><div class="iname">' + esc(it.name) + '</div>' +
-           '<div>' + esc(it.reason) + '</div>' +
-           '<div class="imeta">' + esc(it.dose) + (it.timing ? '・' + esc(it.timing) : '') + '</div></div>';
+           '<div>' + esc(it.reason) + '</div></div>';
     });
     h += '</div>';
   });
 
-  // MAY 藥師推薦(商品層)
-  h += '<div class="card"><b>🌿 ' + esc(CFG.recommend_title || '藥師推薦') + '</b>';
-  if (!S.rec.products.length) {
-    h += '<p style="margin-top:8px;color:var(--muted);font-size:14px">目前沒有對應的推薦商品,歡迎到店由藥師為您介紹。</p>';
-  } else {
-    h += '<p style="margin-top:4px;font-size:12.5px;color:var(--muted)">符合越多您勾選的需求,排序越前面</p><div style="height:8px"></div>';
-    S.rec.products.forEach(function (p) {
-      var cls = p.warnLevel === '紅' ? 'red' : (p.warnLevel === '黃' ? 'yellow' : '');
-      h += '<div class="prod ' + cls + '"><div class="pname">' + esc(p.name) +
-           (p.votes > 1 ? '<span class="badge">符合 ' + p.votes + ' 項需求</span>' : '') + '</div>';
-      if (p.topics.length) h += '<div class="ptopics">適用:' + esc(p.topics.join('、')) + '</div>';
-      if (p.warnText) h += '<div class="warn ' + cls + '">⚠ ' + esc(p.warnText) + '</div>';
-      if (p.warnLevel === '紅') {
-        h += '<button class="btn consult" onclick="renderConsult(\'' + esc(p.name) + '\')">此商品請先諮詢藥師</button>';
-      }
-      h += '</div>';
-    });
-    var sendable = S.rec.products.length;
-    if (sendable) {
-      h += '<button class="btn" onclick="pushCarousel()">📩 把推薦傳到 LINE(含購買連結)</button>' +
-           '<p style="font-size:12px;color:var(--muted);text-align:center;margin-top:6px">傳送後可隨時在聊天室查看</p>';
-    }
-  }
-  h += '<button class="btn gray" onclick="renderModePick()">← 重新選擇主題</button></div>';
+  // 商品不顯示於網頁;由客人主動請藥師傳送至 LINE
+  h += '<div class="card"><b>需要 ' + esc(pharmTitle()) + ' 嗎?</b>' +
+       '<p style="margin-top:6px;font-size:13.5px;color:var(--muted)">如需適合的產品建議,點下方按鈕,藥師推薦將直接傳送到您的 LINE 聊天室。</p>' +
+       '<button class="btn" onclick="sendRecommendDirect2()">需要藥師建議產品(傳送至 LINE)</button>' +
+       '</div>';
   render(h);
   window.scrollTo(0, 0);
+}
+
+function sendRecommendDirect2() {
+  if (!S.rec || !S.rec.products || !S.rec.products.length) {
+    toast('目前沒有對應的推薦商品,歡迎洽詢藥師');
+    return;
+  }
+  pushCarousel();
 }
 
 /* ---------- 推薦 carousel 推回 LINE ---------- */
