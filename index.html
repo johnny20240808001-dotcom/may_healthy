@@ -168,9 +168,14 @@ function loadInit() {
 }
 
 function renderModePick() {
-  var h = '<div class="card"><b>您想了解哪一類?</b>' +
+  var h = '<div class="card">';
+  if (CFG.welcome_text) {
+    h += '<p style="font-size:13.5px;color:var(--muted);margin-bottom:8px">' + esc(CFG.welcome_text) + '</p>';
+  }
+  h += '<b>您想了解哪一類?</b>' +
     '<button class="btn" onclick="renderTopicPick(\'disease\')">依健康困擾查詢(可複選)</button>' +
-    '<button class="btn ghost" onclick="renderTopicPick(\'ingredient\')">直接查某個保健成分</button></div>';
+    '<button class="btn ghost" onclick="renderTopicPick(\'ingredient\')">直接查某個保健成分</button>' +
+    '<button class="btn ghost" onclick="renderConsult()">💬 專人用藥諮詢</button></div>';
   render(h);
 }
 
