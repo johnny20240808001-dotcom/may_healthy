@@ -363,49 +363,41 @@ function validUrl_(u) {
 
 function pushCarousel() {
   if (!liff.isInClient()) { toast('請從 LINE 內開啟才能傳送'); return; }
-  var items = S.rec.products.slice(0, 12);
-  var bubbles = items.map(function (p) {
-    var isRed = p.warnLevel === '紅';
-    var hasLink = p.link && p.link.indexOf('http') === 0;
-    var name = (p.name || '商品').substring(0, 40);
 
-    var bodyContents = [];
-    bodyContents.push({ type: 'text', text: name, weight: 'bold', size: 'md', wrap: true });
-    if (p.topics && p.topics.length) {
-      var t = ('適用:' + p.topics.join('、')).substring(0, 60);
-      bodyContents.push({ type: 'text', text: t, size: 'sm', color: '#888888', wrap: true });
-    }
-    if (p.warnText && String(p.warnText).trim()) {
-      var w = ('⚠ ' + p.warnText).substring(0, 120);
-      bodyContents.push({ type: 'text', text: w, size: 'sm', color: isRed ? '#C0392B' : '#B7791F', wrap: true });
-    }
-    bodyContents.push({ type: 'text', text: '保健食品不能取代藥物,如有用藥請諮詢藥師', size: 'sm', color: '#AAAAAA', wrap: true });
-
-    var footerBtn;
-    if (isRed || !hasLink) {
-      footerBtn = { type: 'button', style: 'primary', color: isRed ? '#C0392B' : '#2E9090',
-        action: { type: 'message', label: '諮詢藥師', text: ('我想諮詢:' + name).substring(0, 300) } };
-    } else {
-      footerBtn = { type: 'button', style: 'primary', color: '#2E9090',
-        action: { type: 'uri', label: '立即購買', uri: p.link } };
-    }
-
-    return {
-      type: 'bubble', size: 'kilo',
-      body: { type: 'box', layout: 'vertical', spacing: 'sm', contents: bodyContents },
-      footer: { type: 'box', layout: 'vertical', contents: [footerBtn] }
-    };
-  });
-
-  liff.sendMessages([{
+  // 最小測試:只取第 1 個商品,最精簡的 bubble
+  var p = S.rec.products[0];
+  var testMsg = {
     type: 'flex',
-    altText: '藥師推薦的保健品',
-    contents: { type: 'carousel', contents: bubbles }
-  }]).then(function () {
-    liff.closeWindow();
-  }).catch(function (err) {
-    toast('傳送失敗:' + (err && err.message ? err.message : String(err)));
-  });
+    altText: '藥師推薦',
+    contents: {
+      type: 'bubble',
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        contents: [
+          { type: 'text', text: String(p.name || '商品'), weight: 'bold', wrap: true }
+        ]
+      }
+    }
+  };
+
+  // 把即將送出的 JSON 顯示在畫面,方便檢查
+  var dbg = document.createElement('div');
+  dbg.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:#fff;color:#000;padding:20px;font-size:11px;z-index:99999;overflow:auto;white-space:pre-wrap;font-family:monospace';
+  dbg.innerHTML = '<b>即將送出(最小測試):</b><br>' + JSON.stringify(testMsg, null, 2) +
+    '<br><br><button onclick="doSend()" style="padding:12px 24px;font-size:16px;background:#2E9090;color:#fff;border:none;border-radius:8px">確認送出</button>' +
+    '<button onclick="this.parentNode.remove()" style="padding:12px 24px;font-size:16px;margin-left:10px">取消</button>';
+  document.body.appendChild(dbg);
+
+  window.doSend = function() {
+    liff.sendMessages([testMsg]).then(function () {
+      dbg.innerHTML = '<b style="color:green;font-size:20px">✅ 送出成功!</b><br>最小卡片可以送,問題在完整卡片的某欄位。<br><button onclick="liff.closeWindow()" style="padding:12px 24px;margin-top:20px">關閉</button>';
+    }).catch(function (err) {
+      dbg.innerHTML = '<b style="color:red;font-size:18px">❌ 連最小卡片都失敗</b><br>' +
+        JSON.stringify({ msg: err && err.message, code: err && err.code }, null, 2) +
+        '<br>→ 問題不在卡片內容,而在 sendMessages 本身(權限/環境)<br><button onclick="this.parentNode.remove()" style="padding:12px 24px;margin-top:20px">關閉</button>';
+    });
+  };
 }
 
 /* ---------- 頁面:用藥諮詢(轉真人,零 AI) ---------- */
