@@ -349,11 +349,23 @@ function renderRecommendations() {
 }
 
 function sendRecommendDirect2() {
-  if (!S.rec || !S.rec.products || !S.rec.products.length) {
-    toast('目前沒有對應的推薦商品,歡迎洽詢藥師');
-    return;
+  try {
+    if (!S.rec || !S.rec.products || !S.rec.products.length) {
+      toast('目前沒有對應的推薦商品,歡迎洽詢藥師');
+      return;
+    }
+    if (typeof liff === 'undefined') { showErr('liff 未定義'); return; }
+    showErr('準備傳送... isInClient=' + liff.isInClient() + ' 商品數=' + S.rec.products.length);
+    pushCarousel();
+  } catch (e) {
+    showErr('按鈕錯誤: ' + (e && e.message ? e.message : String(e)));
   }
-  pushCarousel();
+}
+function showErr(msg) {
+  var d = document.createElement('div');
+  d.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#C0392B;color:#fff;padding:12px;font-size:13px;z-index:9999;white-space:pre-wrap';
+  d.textContent = msg;
+  document.body.appendChild(d);
 }
 
 /* ---------- 推薦 carousel 推回 LINE ---------- */
