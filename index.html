@@ -363,63 +363,53 @@ function validUrl_(u) {
 
 function pushCarousel() {
   if (!liff.isInClient()) { toast('請從 LINE 內開啟才能傳送'); return; }
-  var p = S.rec.products[0];  // 第一個(通常是安全商品)
-  var pRed = null;
-  for (var k = 0; k < S.rec.products.length; k++) {
-    if (S.rec.products[k].warnLevel === '紅') { pRed = S.rec.products[k]; break; }
-  }
+  var consultUrl = 'https://liff.line.me/' + LIFF_ID + '?type=consult';
+  var items = S.rec.products.slice(0, 12);
+  var bubbles = items.map(function (p) {
+    var isRed = p.warnLevel === '紅';
+    var hasLink = p.link && p.link.indexOf('http') === 0;
+    var name = (p.name || '商品').substring(0, 40);
 
-  // 測試 A:只文字
-  var msgA = { type: 'flex', altText: 'A', contents: { type: 'bubble',
-    body: { type: 'box', layout: 'vertical', contents: [{ type: 'text', text: p.name, weight: 'bold', wrap: true }] } } };
+    var bodyContents = [];
+    bodyContents.push({ type: 'text', text: name, weight: 'bold', size: 'md', wrap: true });
+    if (p.topics && p.topics.length) {
+      bodyContents.push({ type: 'text', text: ('適用:' + p.topics.join('、')).substring(0, 60), size: 'sm', color: '#888888', wrap: true });
+    }
+    if (p.warnText && String(p.warnText).trim()) {
+      bodyContents.push({ type: 'text', text: ('⚠ ' + p.warnText).substring(0, 120), size: 'sm', color: isRed ? '#C0392B' : '#B7791F', wrap: true });
+    }
+    bodyContents.push({ type: 'text', text: '保健食品不能取代藥物,如有用藥請諮詢藥師', size: 'sm', color: '#AAAAAA', wrap: true });
 
-  // 測試 B:文字 + uri 按鈕
-  var msgB = { type: 'flex', altText: 'B', contents: { type: 'bubble',
-    body: { type: 'box', layout: 'vertical', contents: [{ type: 'text', text: p.name, weight: 'bold', wrap: true }] },
-    footer: { type: 'box', layout: 'vertical', contents: [
-      { type: 'button', style: 'primary', action: { type: 'uri', label: '立即購買', uri: p.link } }
-    ] } } };
+    // 按鈕一律用 uri(LIFF sendMessages 不支援 message action)
+    var footerBtn;
+    if (isRed) {
+      // 紅標:引導去專人諮詢
+      footerBtn = { type: 'button', style: 'primary', color: '#C0392B',
+        action: { type: 'uri', label: '諮詢藥師', uri: consultUrl } };
+    } else if (hasLink) {
+      footerBtn = { type: 'button', style: 'primary', color: '#2E9090',
+        action: { type: 'uri', label: '立即購買', uri: p.link } };
+    } else {
+      footerBtn = { type: 'button', style: 'primary', color: '#2E9090',
+        action: { type: 'uri', label: '諮詢藥師', uri: consultUrl } };
+    }
 
-  // 測試 C:文字 + message 按鈕(紅標商品用這個)
-  var rp = pRed || p;
-  var msgC = { type: 'flex', altText: 'C', contents: { type: 'bubble',
-    body: { type: 'box', layout: 'vertical', contents: [{ type: 'text', text: rp.name, weight: 'bold', wrap: true }] },
-    footer: { type: 'box', layout: 'vertical', contents: [
-      { type: 'button', style: 'primary', action: { type: 'message', label: '諮詢藥師', text: '我想諮詢:' + rp.name } }
-    ] } } };
+    return {
+      type: 'bubble', size: 'kilo',
+      body: { type: 'box', layout: 'vertical', spacing: 'sm', contents: bodyContents },
+      footer: { type: 'box', layout: 'vertical', contents: [footerBtn] }
+    };
+  });
 
-  // 測試 D:carousel 多商品(2個)
-  var msgD = { type: 'flex', altText: 'D', contents: { type: 'carousel', contents: [
-    { type: 'bubble', size: 'kilo', body: { type: 'box', layout: 'vertical', contents: [{ type: 'text', text: p.name, weight: 'bold', wrap: true }] } },
-    { type: 'bubble', size: 'kilo', body: { type: 'box', layout: 'vertical', contents: [{ type: 'text', text: rp.name, weight: 'bold', wrap: true }] } }
-  ] } };
-
-  function tryS(msg, label) {
-    liff.sendMessages([msg]).then(function () {
-      showR('✅ ' + label + ' 成功', 'green');
-    }).catch(function (err) {
-      showR('❌ ' + label + ' 失敗: ' + (err && err.message ? err.message : err), 'red');
-    });
-  }
-  function showR(t, c) {
-    var r = document.getElementById('rslt');
-    r.innerHTML += '<div style="color:' + c + ';font-size:16px;margin:6px 0">' + t + '</div>';
-  }
-
-  var dbg = document.createElement('div');
-  dbg.style.cssText = 'position:fixed;inset:0;background:#fff;color:#000;padding:20px;z-index:99999;overflow:auto;font-size:14px';
-  dbg.innerHTML = '<b>逐項測試(依序按,看哪個失敗)</b><br>紅標商品: ' + (pRed ? pRed.name : '無') + '<br><br>' +
-    '<button onclick="window._a()" style="display:block;width:100%;padding:14px;margin:6px 0;background:#2E9090;color:#fff;border:none;border-radius:8px;font-size:15px">A: 只文字</button>' +
-    '<button onclick="window._b()" style="display:block;width:100%;padding:14px;margin:6px 0;background:#2E9090;color:#fff;border:none;border-radius:8px;font-size:15px">B: +購買按鈕(uri)</button>' +
-    '<button onclick="window._c()" style="display:block;width:100%;padding:14px;margin:6px 0;background:#C0392B;color:#fff;border:none;border-radius:8px;font-size:15px">C: +諮詢按鈕(message,紅標)</button>' +
-    '<button onclick="window._d()" style="display:block;width:100%;padding:14px;margin:6px 0;background:#555;color:#fff;border:none;border-radius:8px;font-size:15px">D: carousel兩商品</button>' +
-    '<div id="rslt" style="margin-top:16px"></div>' +
-    '<button onclick="this.parentNode.remove()" style="margin-top:16px;padding:10px 20px">關閉</button>';
-  document.body.appendChild(dbg);
-  window._a = function(){ tryS(msgA, 'A只文字'); };
-  window._b = function(){ tryS(msgB, 'B購買uri'); };
-  window._c = function(){ tryS(msgC, 'C諮詢message'); };
-  window._d = function(){ tryS(msgD, 'Dcarousel'); };
+  liff.sendMessages([{
+    type: 'flex',
+    altText: '藥師推薦的保健品',
+    contents: { type: 'carousel', contents: bubbles }
+  }]).then(function () {
+    liff.closeWindow();
+  }).catch(function (err) {
+    toast('傳送失敗:' + (err && err.message ? err.message : String(err)));
+  });
 }
 
 /* ---------- 頁面:用藥諮詢(轉真人,零 AI) ---------- */
