@@ -367,24 +367,39 @@ function pushCarousel() {
   var bubbles = items.map(function (p) {
     var isRed = p.warnLevel === '紅';
     var hasLink = p.link && p.link.indexOf('http') === 0;
-    var bodyContents = [
-      { type: 'text', text: p.name, weight: 'bold', size: 'md', wrap: true }
-    ];
-    if (p.topics && p.topics.length) bodyContents.push({ type: 'text', text: '適用:' + p.topics.join('、'), size: 'xs', color: '#888888', wrap: true });
-    if (p.warnText) bodyContents.push({ type: 'text', text: '⚠ ' + p.warnText, size: 'xxs', color: isRed ? '#C0392B' : '#B7791F', wrap: true });
-    bodyContents.push({ type: 'text', text: '保健食品不能取代藥物,如有用藥請諮詢藥師', size: 'xxs', color: '#AAAAAA', wrap: true });
-    var footerBtn = (isRed || !hasLink)
-      ? { type: 'button', style: 'primary', color: isRed ? '#C0392B' : '#2E9090', action: { type: 'message', label: '諮詢藥師', text: '我想諮詢藥師關於:' + p.name } }
-      : { type: 'button', style: 'primary', color: '#2E9090', action: { type: 'uri', label: '立即購買', uri: p.link } };
+    var name = (p.name || '商品').substring(0, 40);
+
+    var bodyContents = [];
+    bodyContents.push({ type: 'text', text: name, weight: 'bold', size: 'md', wrap: true });
+    if (p.topics && p.topics.length) {
+      var t = ('適用:' + p.topics.join('、')).substring(0, 60);
+      bodyContents.push({ type: 'text', text: t, size: 'sm', color: '#888888', wrap: true });
+    }
+    if (p.warnText && String(p.warnText).trim()) {
+      var w = ('⚠ ' + p.warnText).substring(0, 120);
+      bodyContents.push({ type: 'text', text: w, size: 'sm', color: isRed ? '#C0392B' : '#B7791F', wrap: true });
+    }
+    bodyContents.push({ type: 'text', text: '保健食品不能取代藥物,如有用藥請諮詢藥師', size: 'sm', color: '#AAAAAA', wrap: true });
+
+    var footerBtn;
+    if (isRed || !hasLink) {
+      footerBtn = { type: 'button', style: 'primary', color: isRed ? '#C0392B' : '#2E9090',
+        action: { type: 'message', label: '諮詢藥師', text: ('我想諮詢:' + name).substring(0, 300) } };
+    } else {
+      footerBtn = { type: 'button', style: 'primary', color: '#2E9090',
+        action: { type: 'uri', label: '立即購買', uri: p.link } };
+    }
+
     return {
       type: 'bubble', size: 'kilo',
       body: { type: 'box', layout: 'vertical', spacing: 'sm', contents: bodyContents },
       footer: { type: 'box', layout: 'vertical', contents: [footerBtn] }
     };
   });
+
   liff.sendMessages([{
     type: 'flex',
-    altText: (CFG.recommend_title || '藥師推薦') + '・為您推薦的保健品',
+    altText: '藥師推薦的保健品',
     contents: { type: 'carousel', contents: bubbles }
   }]).then(function () {
     liff.closeWindow();
