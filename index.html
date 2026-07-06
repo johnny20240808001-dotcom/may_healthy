@@ -61,6 +61,8 @@ textarea{min-height:88px;resize:vertical}
 .toast.show{opacity:1}
 .hidden{display:none}
 .loading{text-align:center;color:var(--muted);padding:40px 0;font-size:14px}
+.topic-img{width:100%;border-radius:12px;margin-bottom:10px;display:block}
+.topic-imgs{margin-bottom:14px}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .grid2 .choice{margin-bottom:0;padding:12px 10px;font-size:14px;justify-content:flex-start}
 .navrow{display:flex;gap:8px;margin-bottom:10px}
@@ -270,11 +272,12 @@ function renderTopic() {
   }
   h += '<div class="card"><b style="font-size:16px">' + esc(t.name) + '</b><div style="height:10px"></div>';
   if (t.point) h += '<div class="point"><div class="tag">💡 重點</div><div class="txt">' + esc(t.point) + '</div></div>';
+  h += renderImages(t.bodyImages);
   h += '<div class="body-text">' + paras(t.body) + '</div>';
   if (t.deep && t.deep !== '(待填)') {
     h += '<button class="acc-btn" onclick="var b=this.nextElementSibling;b.classList.toggle(\'open\');this.classList.toggle(\'open\')">' +
          '<span>🔍 深入了解</span><span class="chev">▾</span></button>' +
-         '<div class="acc-body"><p>' + esc(t.deep) + '</p></div>';
+         '<div class="acc-body">' + renderImages(t.deepImages) + '<p>' + esc(t.deep) + '</p></div>';
   }
   if (S.kind === 'ingredient') {
     // 成分路:直接由藥師傳送推薦到 LINE,不在網頁顯示商品
@@ -450,6 +453,16 @@ function submitConsult() {
 
 /* ---------- 工具 ---------- */
 function render(html) { document.getElementById('app').innerHTML = html; }
+function renderImages(imgStr) {
+  if (!imgStr) return '';
+  var list = String(imgStr).split(/[,\n]/).map(function (s) { return s.trim(); }).filter(function (s) { return s; });
+  if (!list.length) return '';
+  var h = '<div class="topic-imgs">';
+  list.forEach(function (u) {
+    h += '<img class="topic-img" src="' + esc(u) + '" alt="" loading="lazy" onerror="this.style.display=\'none\'">';
+  });
+  return h + '</div>';
+}
 function esc(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
     return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
