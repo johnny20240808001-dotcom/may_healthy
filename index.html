@@ -349,23 +349,11 @@ function renderRecommendations() {
 }
 
 function sendRecommendDirect2() {
-  try {
-    if (!S.rec || !S.rec.products || !S.rec.products.length) {
-      toast('目前沒有對應的推薦商品,歡迎洽詢藥師');
-      return;
-    }
-    if (typeof liff === 'undefined') { showErr('liff 未定義'); return; }
-    showErr('準備傳送... isInClient=' + liff.isInClient() + ' 商品數=' + S.rec.products.length);
-    pushCarousel();
-  } catch (e) {
-    showErr('按鈕錯誤: ' + (e && e.message ? e.message : String(e)));
+  if (!S.rec || !S.rec.products || !S.rec.products.length) {
+    toast('目前沒有對應的推薦商品,歡迎洽詢藥師');
+    return;
   }
-}
-function showErr(msg) {
-  var d = document.createElement('div');
-  d.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#C0392B;color:#fff;padding:12px;font-size:13px;z-index:9999;white-space:pre-wrap';
-  d.textContent = msg;
-  document.body.appendChild(d);
+  pushCarousel();
 }
 
 /* ---------- 推薦 carousel 推回 LINE ---------- */
@@ -375,29 +363,25 @@ function validUrl_(u) {
 
 function pushCarousel() {
   if (!liff.isInClient()) { toast('請從 LINE 內開啟才能傳送'); return; }
-  var items = S.rec.products.slice(0, 12); // carousel 上限 12
+  var items = S.rec.products.slice(0, 12);
   var bubbles = items.map(function (p) {
     var isRed = p.warnLevel === '紅';
-    var linkOk = validUrl_(p.link);
+    var hasLink = p.link && p.link.indexOf('http') === 0;
     var bodyContents = [
       { type: 'text', text: p.name, weight: 'bold', size: 'md', wrap: true }
     ];
-    if (p.topics.length) bodyContents.push({ type: 'text', text: '適用:' + p.topics.join('、'), size: 'xs', color: '#888888', wrap: true });
+    if (p.topics && p.topics.length) bodyContents.push({ type: 'text', text: '適用:' + p.topics.join('、'), size: 'xs', color: '#888888', wrap: true });
     if (p.warnText) bodyContents.push({ type: 'text', text: '⚠ ' + p.warnText, size: 'xxs', color: isRed ? '#C0392B' : '#B7791F', wrap: true });
     bodyContents.push({ type: 'text', text: '保健食品不能取代藥物,如有用藥請諮詢藥師', size: 'xxs', color: '#AAAAAA', wrap: true });
-    var footerBtn = (isRed || !linkOk)
+    var footerBtn = (isRed || !hasLink)
       ? { type: 'button', style: 'primary', color: isRed ? '#C0392B' : '#2E9090', action: { type: 'message', label: '諮詢藥師', text: '我想諮詢藥師關於:' + p.name } }
       : { type: 'button', style: 'primary', color: '#2E9090', action: { type: 'uri', label: '立即購買', uri: p.link } };
-    var bubble = {
+    return {
       type: 'bubble', size: 'kilo',
       body: { type: 'box', layout: 'vertical', spacing: 'sm', contents: bodyContents },
       footer: { type: 'box', layout: 'vertical', contents: [footerBtn] }
     };
-    if (validUrl_(p.img)) bubble.hero = { type: 'image', url: p.img, size: 'full', aspectRatio: '1:1', aspectMode: 'cover' };
-    return bubble;
   });
-  // 診斷:先確認環境與權限
-  var canSend = (typeof liff.isApiAvailable === 'function') ? liff.isApiAvailable('sendMessages') : 'unknown';
   liff.sendMessages([{
     type: 'flex',
     altText: (CFG.recommend_title || '藥師推薦') + '・為您推薦的保健品',
@@ -405,15 +389,7 @@ function pushCarousel() {
   }]).then(function () {
     liff.closeWindow();
   }).catch(function (err) {
-    var msg = (err && err.message) ? err.message : String(err);
-    var code = (err && err.code) ? err.code : '';
-    render('<div class="card" style="color:#C0392B"><b>傳送診斷</b><br>' +
-      'isInClient: ' + liff.isInClient() + '<br>' +
-      'sendMessages 可用: ' + canSend + '<br>' +
-      'code: ' + esc(String(code)) + '<br>' +
-      'message: ' + esc(msg) + '<br>' +
-      'os: ' + (liff.getOS ? liff.getOS() : '?') +
-      '</div><button class="btn gray" onclick="renderModePick()">← 返回</button>');
+    toast('傳送失敗:' + (err && err.message ? err.message : String(err)));
   });
 }
 
@@ -465,6 +441,14 @@ function submitConsult() {
 
 /* ---------- 工具 ---------- */
 function render(html) { document.getElementById('app').innerHTML = html; }
+function showDbg(msg) {
+  var d = document.createElement('div');
+  d.style.cssText = 'position:fixed;left:0;right:0;background:#1a5;color:#fff;padding:10px;font-size:12px;z-index:99999;white-space:pre-wrap;border-bottom:1px solid #fff';
+  d.style.top = (document.querySelectorAll('.dbgline').length * 60) + 'px';
+  d.className = 'dbgline';
+  d.textContent = msg;
+  document.body.appendChild(d);
+}
 function renderImages(imgStr) {
   if (!imgStr) return '';
   var list = String(imgStr).split(/[,\n]/).map(function (s) { return s.trim(); }).filter(function (s) { return s; });
