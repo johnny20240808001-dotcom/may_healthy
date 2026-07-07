@@ -394,11 +394,17 @@ function pushCarousel() {
         action: { type: 'uri', label: '諮詢藥師', uri: consultUrl } };
     }
 
-    return {
+    var bubble = {
       type: 'bubble', size: 'kilo',
       body: { type: 'box', layout: 'vertical', spacing: 'sm', contents: bodyContents },
       footer: { type: 'box', layout: 'vertical', contents: [footerBtn] }
     };
+    // 有合法圖片網址才加 hero image(避免無效網址害整則訊息失敗)
+    var img = p.img && String(p.img).trim();
+    if (img && /^https:\/\/[^\s\/]+\.[^\s]+/.test(img)) {
+      bubble.hero = { type: 'image', url: img, size: 'full', aspectRatio: '1:1', aspectMode: 'cover' };
+    }
+    return bubble;
   });
 
   liff.sendMessages([{
