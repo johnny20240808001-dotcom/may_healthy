@@ -480,10 +480,71 @@ function openLightbox(src) {
   var lb = document.createElement('div');
   lb.className = 'lightbox';
   lb.innerHTML = '<span class="lb-close">&times;</span>' +
-    '<img src="' + esc(src) + '" alt="">' +
-    '<div class="lb-hint">點任意處關閉</div>';
-  lb.onclick = function () { lb.remove(); };
+    '<img src="' + esc(src) + '" alt="" draggable="false">' +
+    '<div class="lb-hint">雙指縮放 / 雙擊放大 · 右上角 ✕ 關閉</div>';
   document.body.appendChild(lb);
+
+  var img = lb.querySelector('img');
+  var scale = 1, tx = 0, ty = 0;
+  var startDist = 0, startScale = 1;
+  var startX = 0, startY = 0, startTx = 0, startTy = 0;
+  var mode = null; // 'pan' | 'pinch'
+
+  function apply() {
+    img.style.transform = 'translate(' + tx + 'px,' + ty + 'px) scale(' + scale + ')';
+  }
+  img.style.transition = 'transform .05s';
+  img.style.transformOrigin = 'center center';
+  img.style.touchAction = 'none';
+
+  function dist(t) {
+    var dx = t[0].clientX - t[1].clientX;
+    var dy = t[0].clientY - t[1].clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+
+  img.addEventListener('touchstart', function (e) {
+    if (e.touches.length === 2) {
+      mode = 'pinch';
+      startDist = dist(e.touches);
+      startScale = scale;
+    } else if (e.touches.length === 1) {
+      mode = 'pan';
+      startX = e.touches[0].clientX; startY = e.touches[0].clientY;
+      startTx = tx; startTy = ty;
+    }
+    e.preventDefault();
+  }, { passive: false });
+
+  img.addEventListener('touchmove', function (e) {
+    if (mode === 'pinch' && e.touches.length === 2) {
+      var d = dist(e.touches);
+      scale = Math.max(1, Math.min(5, startScale * (d / startDist)));
+      apply();
+    } else if (mode === 'pan' && e.touches.length === 1 && scale > 1) {
+      tx = startTx + (e.touches[0].clientX - startX);
+      ty = startTy + (e.touches[0].clientY - startY);
+      apply();
+    }
+    e.preventDefault();
+  }, { passive: false });
+
+  // 雙擊放大/還原
+  var lastTap = 0;
+  img.addEventListener('touchend', function (e) {
+    var now = Date.now();
+    if (now - lastTap < 300 && e.touches.length === 0) {
+      if (scale > 1) { scale = 1; tx = 0; ty = 0; } else { scale = 2.5; }
+      apply();
+    }
+    lastTap = now;
+    if (e.touches.length === 0) mode = null;
+  });
+
+  // 點背景(非圖片)關閉
+  lb.addEventListener('click', function (e) {
+    if (e.target === lb || e.target.className === 'lb-close') lb.remove();
+  });
 }
 function renderAudio(url) {
   var u = String(url || '').trim();
