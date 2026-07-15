@@ -61,7 +61,11 @@ textarea{min-height:88px;resize:vertical}
 .toast.show{opacity:1}
 .hidden{display:none}
 .loading{text-align:center;color:var(--muted);padding:40px 0;font-size:14px}
-.topic-img{width:100%;border-radius:12px;margin-bottom:10px;display:block}
+.topic-img{width:100%;border-radius:12px;margin-bottom:10px;display:block;cursor:zoom-in}
+.lightbox{position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px}
+.lightbox img{max-width:100%;max-height:100%;border-radius:8px}
+.lightbox .lb-close{position:absolute;top:16px;right:20px;color:#fff;font-size:32px;cursor:pointer;line-height:1;font-weight:300}
+.lightbox .lb-hint{position:absolute;bottom:24px;left:0;right:0;text-align:center;color:rgba(255,255,255,.6);font-size:13px}
 .topic-imgs{margin-bottom:14px}
 .audio-box{background:#EAF6F4;border-radius:12px;padding:12px 14px;margin-bottom:14px;display:flex;align-items:center;gap:10px}
 .audio-box .ico{font-size:20px;flex-shrink:0}
@@ -472,6 +476,15 @@ function submitConsult() {
 
 /* ---------- 工具 ---------- */
 function render(html) { document.getElementById('app').innerHTML = html; }
+function openLightbox(src) {
+  var lb = document.createElement('div');
+  lb.className = 'lightbox';
+  lb.innerHTML = '<span class="lb-close">&times;</span>' +
+    '<img src="' + esc(src) + '" alt="">' +
+    '<div class="lb-hint">點任意處關閉</div>';
+  lb.onclick = function () { lb.remove(); };
+  document.body.appendChild(lb);
+}
 function renderAudio(url) {
   var u = String(url || '').trim();
   if (!u) return '';
@@ -487,7 +500,7 @@ function renderImages(imgStr) {
   if (!list.length) return '';
   var h = '<div class="topic-imgs">';
   list.forEach(function (u) {
-    h += '<img class="topic-img" src="' + esc(u) + '" alt="" loading="lazy" onerror="this.style.display=\'none\'">';
+    h += '<img class="topic-img" src="' + esc(u) + '" alt="" loading="lazy" onclick="openLightbox(this.src)" onerror="this.style.display=\'none\'">';
   });
   return h + '</div>';
 }
