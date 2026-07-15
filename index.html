@@ -63,6 +63,11 @@ textarea{min-height:88px;resize:vertical}
 .loading{text-align:center;color:var(--muted);padding:40px 0;font-size:14px}
 .topic-img{width:100%;border-radius:12px;margin-bottom:10px;display:block}
 .topic-imgs{margin-bottom:14px}
+.audio-box{background:#EAF6F4;border-radius:12px;padding:12px 14px;margin-bottom:14px;display:flex;align-items:center;gap:10px}
+.audio-box .ico{font-size:20px;flex-shrink:0}
+.audio-box .lbl{font-size:13px;color:var(--brand);font-weight:600;margin-bottom:6px}
+.audio-box audio{width:100%;height:38px}
+.audio-box .wrap-a{flex:1;min-width:0}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .grid2 .choice{margin-bottom:0;padding:13px 10px;font-size:15px;justify-content:flex-start}
 .navrow{display:flex;gap:8px;margin-bottom:10px}
@@ -272,6 +277,7 @@ function renderTopic() {
   }
   h += '<div class="card"><b style="font-size:16px">' + esc(t.name) + '</b><div style="height:10px"></div>';
   if (t.point) h += '<div class="point"><div class="tag">💡 重點</div><div class="txt">' + esc(t.point) + '</div></div>';
+  h += renderAudio(t.audio);
   h += renderImages(t.bodyImages);
   h += '<div class="body-text">' + paras(t.body) + '</div>';
   if (t.deep && t.deep !== '(待填)') {
@@ -466,6 +472,15 @@ function submitConsult() {
 
 /* ---------- 工具 ---------- */
 function render(html) { document.getElementById('app').innerHTML = html; }
+function renderAudio(url) {
+  var u = String(url || '').trim();
+  if (!u) return '';
+  // 相對路徑或合法網址皆可
+  return '<div class="audio-box"><div class="ico">🎧</div><div class="wrap-a">' +
+    '<div class="lbl">藥師語音衛教</div>' +
+    '<audio controls preload="none" src="' + esc(u) + '">您的裝置不支援語音播放</audio>' +
+    '</div></div>';
+}
 function renderImages(imgStr) {
   if (!imgStr) return '';
   var list = String(imgStr).split(/[,\n]/).map(function (s) { return s.trim(); }).filter(function (s) { return s; });
